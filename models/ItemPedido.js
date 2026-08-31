@@ -1,18 +1,18 @@
 const { DataTypes } = require('sequelize')
 const db = require('../db/conn')
 
-const Estoque = db.define('estoque', {
-    codEstoque: {
+const ItemPedido = db.define('itemPedido', {
+    codItemPedido: {
         type: DataTypes.INTEGER,
         primaryKey: true,
         autoIncrement: true
     },
-    idUsuario: {
+    idPedido: {
         type: DataTypes.INTEGER,
         allowNull: false,
         references: {
-            model: 'usuarios',
-            key: 'codUsuario'
+            model: 'pedidos',
+            key: 'codPedido'
         }
     },
     idServico: {
@@ -23,21 +23,18 @@ const Estoque = db.define('estoque', {
             key: 'codServico'
         }
     },
-    data: {
-        type: DataTypes.DATEONLY,
-        allowNull: false
-    },
-    qtdeMov: {
+    quantidade: {
         type: DataTypes.INTEGER,
-        allowNull: false
+        allowNull: false,
+        defaultValue: 1
     },
-    tipo: {
-        type: DataTypes.ENUM('ENTRADA', 'SAIDA'),
+    precoUnitario: {
+        type: DataTypes.DECIMAL(10, 2),
         allowNull: false
     }
 }, {
     timestamps: false,
-    tableName: 'estoques'
+    tableName: 'itens_pedido'
 })
 
-module.exports = Estoque
+module.exports = ItemPedido

@@ -1,19 +1,23 @@
 {
-  "dependencies": {
-    "cors": "^2.8.6",
-    "dotenv": "^17.4.2",
-    "express": "^5.2.1",
-    "mysql2": "^3.23.3",
-    "sequelize": "^6.37.8"
-  },
-  "name": "implantar backend",
+  "name": "del-backend",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "node index.js"
+    "start": "node index.js",
+    "sync": "node sync.js"
   },
   "keywords": [],
-  "author": "Pedro Krefta",
+  "author": "",
   "license": "MIT",
-  "description": ""
+  "description": "Backend do e-commerce de serviços de licitação da Del Company",
+  "dependencies": {
+    "axios": "^1.7.9",
+    "bcrypt": "^5.1.1",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.2",
+    "mysql2": "^3.23.3",
+    "sequelize": "^6.37.8"
+  }
 }

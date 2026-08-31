@@ -1,7 +1,7 @@
 require('dotenv').config()
 const express = require('express')
-const app = express()
 const cors = require('cors')
+const app = express()
 
 const PORT = process.env.PORT || 3000
 
@@ -9,49 +9,103 @@ const conn = require('./db/conn')
 require('./models/rel')
 
 const usuarioController = require('./controller/usuario.controller')
-const produtoController = require('./controller/produto.controller')
+const categoriaController = require('./controller/categoria.controller')
+const servicoController = require('./controller/servico.controller')
 const estoqueController = require('./controller/estoque.controller')
+const pedidoController = require('./controller/pedido.controller')
+const itemPedidoController = require('./controller/itemPedido.controller')
+const entregaController = require('./controller/entrega.controller')
+
+const { autenticar, somenteAdmin } = require('./middleware/auth.middleware')
 
 // ---------- middleware -------------
-app.use(express.urlencoded({extended: true}))
+app.use(express.urlencoded({ extended: true }))
 app.use(express.json())
 app.use(cors())
-// app.use(cors({
-//     origin: '*',
-//     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-//     allowedHeaders: ['Content-Type', 'Authorization']
-// }))
 // -----------------------------------
 
-// Rotas Usuário
-app.post('/usuario', usuarioController.cadastrar)
-app.get('/usuario', usuarioController.listar)
-app.get('/usuario/:id', usuarioController.consultar)
-app.put('/usuario/:id', usuarioController.atualizar)
-app.delete('/usuario/:id', usuarioController.apagar)
+// =====================================================
+// ROTAS PÚBLICAS (sem necessidade de login)
+// =====================================================
+app.post('/login', usuarioController.login)
+app.post('/usuarios', usuarioController.cadastrar)
 
-// Rotas Produto
-app.post('/produto', produtoController.cadastrar)
-app.get('/produto', produtoController.listar)
-app.get('/produto/:id', produtoController.consultar)
-app.put('/produto/:id', produtoController.atualizar)
-app.delete('/produto/:id', produtoController.apagar)
+app.get('/produtos', servicoController.listar)          // vitrine de serviços (mantém nome do PDF)
+app.get('/servicos', servicoController.listar)
+app.get('/servicos/buscar', servicoController.consultar)
+app.get('/servicos/:id', servicoController.consultar)
 
-// Rotas Estoque
-app.post('/estoque', estoqueController.cadastrar)
-app.get('/estoque', estoqueController.listar)
+app.get('/categorias', categoriaController.listar)
+app.get('/categorias/buscar', categoriaController.consultar)
+app.get('/categorias/:id', categoriaController.consultar)
 
-app.get('/', (req,res)=>{
-    res.status(200).json({message: 'teste de aplicação rodando'})
+// =====================================================
+// ROTAS PRIVADAS (protegidas por JWT)
+// =====================================================
+
+// Perfil do usuário logado
+app.get('/usuarios/perfil', autenticar, usuarioController.perfil)
+app.put('/usuarios/:id', autenticar, usuarioController.atualizar)
+app.patch('/usuarios/:id', autenticar, usuarioController.atualizarParcial)
+
+// Checkout e histórico de pedidos
+app.post('/pedidos', autenticar, pedidoController.cadastrar)
+app.get('/pedidos/meus-pedidos', autenticar, pedidoController.meusPedidos)
+app.get('/pedidos/:id', autenticar, pedidoController.consultar)
+
+// Itens de pedido (consulta)
+app.get('/itens-pedido', autenticar, somenteAdmin, itemPedidoController.listar)
+app.get('/itens-pedido/:id', autenticar, itemPedidoController.consultar)
+
+// Painel administrativo / gestão de serviços (catálogo)
+app.post('/servicos', autenticar, somenteAdmin, servicoController.cadastrar)
+app.put('/servicos/:id', autenticar, somenteAdmin, servicoController.atualizar)
+app.patch('/servicos/:id', autenticar, somenteAdmin, servicoController.atualizarParcial)
+app.delete('/servicos/:id', autenticar, somenteAdmin, servicoController.apagar)
+
+// Painel administrativo / gestão de categorias
+app.post('/categorias', autenticar, somenteAdmin, categoriaController.cadastrar)
+app.put('/categorias/:id', autenticar, somenteAdmin, categoriaController.atualizar)
+app.patch('/categorias/:id', autenticar, somenteAdmin, categoriaController.atualizarParcial)
+app.delete('/categorias/:id', autenticar, somenteAdmin, categoriaController.apagar)
+
+// Movimentação e controle de estoque (capacidade de atendimento)
+app.post('/estoque', autenticar, somenteAdmin, estoqueController.cadastrar)
+app.get('/estoque', autenticar, somenteAdmin, estoqueController.listar)
+
+// Gestão de usuários (admin)
+app.get('/usuarios', autenticar, somenteAdmin, usuarioController.listar)
+app.get('/usuarios/:id', autenticar, somenteAdmin, usuarioController.consultar)
+app.delete('/usuarios/:id', autenticar, somenteAdmin, usuarioController.apagar)
+
+// Acompanhamento dos processos licitatórios (Entrega)
+app.get('/entregas', autenticar, entregaController.listar)
+app.get('/entregas/buscar', autenticar, entregaController.consultar)
+app.get('/entregas/:id', autenticar, entregaController.consultar)
+app.put('/entregas/:id', autenticar, somenteAdmin, entregaController.atualizar)
+app.patch('/entregas/:id', autenticar, somenteAdmin, entregaController.atualizarParcial)
+
+// Relatórios gerenciais (para os gráficos com chart.js no frontend)
+app.get('/relatorios/vendas', autenticar, somenteAdmin, async (req, res) => {
+    // TODO: agregação de valorTotal por Categoria/Servico (ex: usando group by + sum no Sequelize)
+    res.status(200).json({ message: 'Endpoint de relatório de vendas - implementar agregação' })
+})
+app.get('/relatorios/estoque', autenticar, somenteAdmin, async (req, res) => {
+    // TODO: agregação de capacidadeDisponivel por Servico/Categoria
+    res.status(200).json({ message: 'Endpoint de relatório de estoque - implementar agregação' })
+})
+
+app.get('/', (req, res) => {
+    res.status(200).json({ message: 'API Del Company rodando' })
 })
 
 // ------------------- Server ---------------
 conn.sync()
-.then(()=>{
-    app.listen(PORT, ()=>{
-        console.log(`Servidor rodando em Port: ${PORT}`)
+    .then(() => {
+        app.listen(PORT, () => {
+            console.log(`Servidor rodando em Port: ${PORT}`)
+        })
     })
-})
-.catch((err)=>{
-    console.error('Erro de conexão com o banco de dados!',err.message || err)
-})
+    .catch((err) => {
+        console.error('Erro de conexão com o banco de dados!', err.message || err)
+    })
