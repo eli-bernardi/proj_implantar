@@ -5,18 +5,18 @@ const app = express()
 
 const PORT = process.env.PORT || 3000
 
-const conn = require('./db/conn')
-require('./models/rel')
+const conn = require('./src/db/conn')
+require('./src/models/rel')
 
-const usuarioController = require('./controller/usuario.controller')
-const categoriaController = require('./controller/categoria.controller')
-const servicoController = require('./controller/servico.controller')
-const estoqueController = require('./controller/estoque.controller')
-const pedidoController = require('./controller/pedido.controller')
-const itemPedidoController = require('./controller/itemPedido.controller')
-const entregaController = require('./controller/entrega.controller')
+const usuarioController = require('./src/controller/usuario.controller')
+const categoriaController = require('./src/controller/categoria.controller')
+const servicoController = require('./src/controller/servico.controller')
+const estoqueController = require('./src/controller/estoque.controller')
+const pedidoController = require('./src/controller/pedido.controller')
+const itemPedidoController = require('./src/controller/itemPedido.controller')
+const entregaController = require('./src/controller/entrega.controller')
 
-const { autenticar, somenteAdmin } = require('./middleware/auth.middleware')
+const { autenticar, somenteAdmin } = require('./src/middleware/auth.middleware')
 
 // ---------- middleware -------------
 app.use(express.urlencoded({ extended: true }))
@@ -100,12 +100,20 @@ app.get('/', (req, res) => {
 })
 
 // ------------------- Server ---------------
-conn.sync()
-    .then(() => {
-        app.listen(PORT, () => {
-            console.log(`Servidor rodando em Port: ${PORT}`)
+// Só conecta no banco e sobe o servidor quando este arquivo é executado
+// diretamente (ex: "node index.js"). Isso permite que os testes importem
+// o "app" (module.exports abaixo) sem depender de um banco real nem
+// disputar a porta 3000.
+if (require.main === module) {
+    conn.sync()
+        .then(() => {
+            app.listen(PORT, () => {
+                console.log(`Servidor rodando em Port: ${PORT}`)
+            })
         })
-    })
-    .catch((err) => {
-        console.error('Erro de conexão com o banco de dados!', err.message || err)
-    })
+        .catch((err) => {
+            console.error('Erro de conexão com o banco de dados!', err.message || err)
+        })
+}
+
+module.exports = app
