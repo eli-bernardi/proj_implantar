@@ -15,6 +15,7 @@ const estoqueController = require('./src/controller/estoque.controller')
 const pedidoController = require('./src/controller/pedido.controller')
 const itemPedidoController = require('./src/controller/itemPedido.controller')
 const entregaController = require('./src/controller/entrega.controller')
+const relatorioController = require('./src/controller/relatorio.controller')
 
 const { autenticar, somenteAdmin } = require('./src/middleware/auth.middleware')
 
@@ -50,6 +51,7 @@ app.patch('/usuarios/:id', autenticar, usuarioController.atualizarParcial)
 
 // Checkout e histórico de pedidos
 app.post('/pedidos', autenticar, pedidoController.cadastrar)
+app.get('/pedidos', autenticar, somenteAdmin, pedidoController.listar)
 app.get('/pedidos/meus-pedidos', autenticar, pedidoController.meusPedidos)
 app.get('/pedidos/:id', autenticar, pedidoController.consultar)
 
@@ -72,6 +74,7 @@ app.delete('/categorias/:id', autenticar, somenteAdmin, categoriaController.apag
 // Movimentação e controle de estoque (capacidade de atendimento)
 app.post('/estoque', autenticar, somenteAdmin, estoqueController.cadastrar)
 app.get('/estoque', autenticar, somenteAdmin, estoqueController.listar)
+app.put('/estoque/:id', autenticar, somenteAdmin, estoqueController.atualizar)
 
 // Gestão de usuários (admin)
 app.get('/usuarios', autenticar, somenteAdmin, usuarioController.listar)
@@ -86,14 +89,8 @@ app.put('/entregas/:id', autenticar, somenteAdmin, entregaController.atualizar)
 app.patch('/entregas/:id', autenticar, somenteAdmin, entregaController.atualizarParcial)
 
 // Relatórios gerenciais (para os gráficos com chart.js no frontend)
-app.get('/relatorios/vendas', autenticar, somenteAdmin, async (req, res) => {
-    // TODO: agregação de valorTotal por Categoria/Servico (ex: usando group by + sum no Sequelize)
-    res.status(200).json({ message: 'Endpoint de relatório de vendas - implementar agregação' })
-})
-app.get('/relatorios/estoque', autenticar, somenteAdmin, async (req, res) => {
-    // TODO: agregação de capacidadeDisponivel por Servico/Categoria
-    res.status(200).json({ message: 'Endpoint de relatório de estoque - implementar agregação' })
-})
+app.get('/relatorios/vendas', autenticar, somenteAdmin, relatorioController.vendas)
+app.get('/relatorios/estoque', autenticar, somenteAdmin, relatorioController.estoque)
 
 app.get('/', (req, res) => {
     res.status(200).json({ message: 'API Del Company rodando' })

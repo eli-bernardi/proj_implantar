@@ -1,3 +1,4 @@
+const db = require('../db/conn')
 const Usuario = require('../models/Usuario')
 const Servico = require('../models/Servico')
 const Estoque = require('../models/Estoque')
@@ -54,4 +55,67 @@ const listar = async (req, res) => {
     }
 }
 
-module.exports = { cadastrar, listar }
+// PUT /estoque/:id - corrige uma movimentação já registrada (data, quantidade e/ou tipo).
+// Reverte o efeito da movimentação antiga na capacidade do serviço e reaplica com os novos valores.
+const atualizar = async (req, res) => {
+    const { id } = req.params
+    const valores = req.body
+
+    if (valores.tipo && !['ENTRADA', 'SAIDA'].includes(valores.tipo)) {
+        return res.status(400).json({ message: 'Tipo inválido' })
+    }
+
+    const transacao = await db.transaction()
+
+    try {
+        const movimentacao = await Estoque.findByPk(id, { transaction: transacao })
+        if (!movimentacao) {
+            await transacao.rollback()
+            return res.status(404).json({ message: 'Movimentação de estoque não encontrada' })
+        }
+
+        const servico = await Servico.findByPk(movimentacao.idServico, { transaction: transacao })
+        if (!servico) {
+            await transacao.rollback()
+            return res.status(404).json({ message: 'Serviço vinculado não encontrado' })
+        }
+
+        // 1. Reverte o efeito da movimentação antiga
+        let capacidadeRevertida = servico.capacidadeDisponivel
+        capacidadeRevertida += movimentacao.tipo === 'ENTRADA' ? -movimentacao.qtdeMov : movimentacao.qtdeMov
+
+        // 2. Aplica o efeito da movimentação atualizada
+        const novoTipo = valores.tipo || movimentacao.tipo
+        const novaQtde = valores.qtdeMov !== undefined ? valores.qtdeMov : movimentacao.qtdeMov
+
+        let capacidadeFinal = capacidadeRevertida
+        if (novoTipo === 'ENTRADA') {
+            capacidadeFinal += novaQtde
+        } else {
+            if (capacidadeRevertida < novaQtde) {
+                await transacao.rollback()
+                return res.status(400).json({ message: 'Capacidade insuficiente para aplicar esta atualização' })
+            }
+            capacidadeFinal -= novaQtde
+        }
+
+        await servico.update({ capacidadeDisponivel: capacidadeFinal }, { transaction: transacao })
+        await movimentacao.update(
+            {
+                data: valores.data || movimentacao.data,
+                qtdeMov: novaQtde,
+                tipo: novoTipo
+            },
+            { transaction: transacao }
+        )
+
+        await transacao.commit()
+        res.status(200).json({ message: 'Movimentação de estoque atualizada!', novaCapacidade: capacidadeFinal, dados: movimentacao })
+    } catch (err) {
+        await transacao.rollback()
+        console.log('Erro ao atualizar movimentação de estoque!', err)
+        res.status(500).json({ message: 'Erro ao atualizar movimentação de estoque!' })
+    }
+}
+
+module.exports = { cadastrar, listar, atualizar }
